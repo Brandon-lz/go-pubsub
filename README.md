@@ -31,7 +31,7 @@ func main() {
     sub3 := agent.Subscribe("foo")
     defer agent.Unsubscribe(sub3)
 	
-	var wg = &sync.WaitGroup{}
+    var wg = &sync.WaitGroup{}
 
     wg.Add(3)
     go func() {
