@@ -31,7 +31,6 @@ func main() {
     sub3 := agent.Subscribe("foo")
     defer agent.Unsubscribe(sub3)
 	
-    // Publish a message to the topic
 	var wg = &sync.WaitGroup{}
 
     wg.Add(3)
@@ -51,7 +50,7 @@ func main() {
     }()
 
    
-
+    // Publish a message to the topic
     go agent.Publish("foo", "hello world")
 
     wg.Wait()
