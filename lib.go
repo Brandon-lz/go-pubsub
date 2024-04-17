@@ -18,22 +18,26 @@ func NewAgent() *Agent {
     }
 }
 
-func (b *Agent) Publish(topic string, msg string) {
-    b.mu.Lock()
-    defer b.mu.Unlock()
+type MsgT string
 
-    if b.closed {
+
+func (a *Agent) Publish(topic string, msg MsgT) {
+    a.mu.Lock()
+    defer a.mu.Unlock()
+
+    if a.closed {
         return
     }
 
-    for _, ch := range b.subs[topic] {
+    for _, ch := range a.subs[topic] {
         ch.Msg <- msg
     }
 }
 
+
 type Subscriber struct {
     id  int
-    Msg chan string
+    Msg chan MsgT
 }
 
 var subscriberIdSet = make(map[int]bool)
@@ -44,23 +48,23 @@ func NewSubscriber() *Subscriber {
             subscriberIdSet[i] = true
             return &Subscriber{
                 id:  i,
-                Msg: make(chan string),
+                Msg: make(chan MsgT, 10),
             }
         }
     }
     panic("too many subscribers")
 }
 
-func (b *Agent) Subscribe(topic string) *Subscriber {
-    b.mu.Lock()
-    defer b.mu.Unlock()
+func (a *Agent) Subscribe(topic string) *Subscriber {
+    a.mu.Lock()
+    defer a.mu.Unlock()
 
-    if b.closed {
+    if a.closed {
         return nil
     }
 
     suber := NewSubscriber()
-    b.subs[topic] = append(b.subs[topic], suber)
+    a.subs[topic] = append(a.subs[topic], suber)
     return suber
 }
 
@@ -82,18 +86,18 @@ func (a *Agent) Unsubscribe(suber *Subscriber) {
     }
 }
 
-func (b *Agent) Close() {
-    b.mu.Lock()
-    defer b.mu.Unlock()
+func (a *Agent) Close() {
+    a.mu.Lock()
+    defer a.mu.Unlock()
 
-    if b.closed {
+    if a.closed {
         return
     }
 
-    b.closed = true
-    close(b.quit)
+    a.closed = true
+    close(a.quit)
 
-    for _, ch := range b.subs {
+    for _, ch := range a.subs {
         for _, sub := range ch {
             func() {
                 defer func() {
