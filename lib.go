@@ -42,13 +42,13 @@ type Subscriber struct {
 
 var subscriberIdSet = make(map[int]bool)
 
-func NewSubscriber() *Subscriber {
+func NewSubscriber(bufferSize int) *Subscriber {
     for i := 0; i < 1000000; i++ {
         if _, ok := subscriberIdSet[i]; !ok {
             subscriberIdSet[i] = true
             return &Subscriber{
                 id:  i,
-                Msg: make(chan MsgT, 10),
+                Msg: make(chan MsgT, bufferSize),
             }
         }
     }
@@ -63,7 +63,7 @@ func (a *Agent) Subscribe(topic string) *Subscriber {
         return nil
     }
 
-    suber := NewSubscriber()
+    suber := NewSubscriber(10)
     a.subs[topic] = append(a.subs[topic], suber)
     return suber
 }
