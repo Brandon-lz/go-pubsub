@@ -1,6 +1,7 @@
 package gopubsub
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -20,40 +21,72 @@ func NewAgent() *Agent {
 
 type MsgT string
 
-func (a *Agent) Publish(topic string, msg MsgT) {
+func (a *Agent) Publish(topic string, msg MsgT) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	if a.closed {
-		return
+		return fmt.Errorf("channel has been closed")
 	}
 
 	for _, ch := range a.subs[topic] {
+		if len(ch.Msg) == cap(ch.Msg) {
+			fmt.Printf("gopubsub Warning: suber:[%s] from topic: [%s]  channel is full, please check if suber not to cancel, or increase suber's buffsize\n", ch.name, topic)
+			return fmt.Errorf("suber:[%s] from topic: [%s]  channel is full, please check if suber not to cancel, or increase suber's buffsize", ch.name, topic)
+		}
 		ch.Msg <- msg
 	}
+	return nil
 }
 
 type Subscriber struct {
-	id  int
-	Msg chan MsgT
+	id   int
+	name string
+	Msg  chan MsgT
+}
+
+func (s *Subscriber) GetSuberName() string {
+	return s.name
 }
 
 var subscriberIdSet = make(map[int]bool)
 
-func NewSubscriber(bufferSize int) *Subscriber {
+func NewSubscriber(bufferSize int, name ...string) *Subscriber {
 	for i := 0; i < 1000000; i++ {
 		if _, ok := subscriberIdSet[i]; !ok {
 			subscriberIdSet[i] = true
+			subname := "noname"
+			if len(name) > 0 {
+				subname = name[0]
+			}
 			return &Subscriber{
-				id:  i,
-				Msg: make(chan MsgT, bufferSize),
+				id:   i,
+				name: subname,
+				Msg:  make(chan MsgT, bufferSize),
 			}
 		}
 	}
 	panic("too many subscribers")
 }
 
-func (a *Agent) Subscribe(topic string) (suber *Subscriber, cancel func(a *Agent, suber *Subscriber)) {
+type SubscribeConfig struct {
+	BufferSize int
+}
+
+type SubscribeOption func(config *SubscribeConfig) error
+
+func SetBufferSizeOpt(buffersize int) SubscribeOption {
+	return func(config *SubscribeConfig) error {
+		if buffersize <= 0 {
+			config.BufferSize = 10
+		} else {
+			config.BufferSize = buffersize
+		}
+		return nil
+	}
+}
+
+func (a *Agent) Subscribe(topic string, options ...SubscribeOption) (suber *Subscriber, cancel func(a *Agent, suber *Subscriber)) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -61,7 +94,13 @@ func (a *Agent) Subscribe(topic string) (suber *Subscriber, cancel func(a *Agent
 		return nil, func(a *Agent, suber *Subscriber) {}
 	}
 
-	suber = NewSubscriber(10)
+	subconfig := SubscribeConfig{BufferSize: 10}
+
+	for _, op := range options {
+		op(&subconfig)
+	}
+
+	suber = NewSubscriber(subconfig.BufferSize)
 	a.subs[topic] = append(a.subs[topic], suber)
 	return suber, func(a *Agent, suber *Subscriber) { a.Unsubscribe(suber) }
 }

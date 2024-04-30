@@ -54,4 +54,9 @@ func TestChanSub(t *testing.T) {
 		fmt.Println("channel is closed")
 	}
 
+	suber4,cancel := agent.Subscribe("foo2")
+	defer cancel(agent,suber4)
+	for _ = range 11 {
+		agent.Publish("foo2","hello")
+	}
 }
