@@ -11,14 +11,13 @@ import (
 func TestChanSub(t *testing.T) {
 	// channel to publish messages to
 	// Create a new agent
-
 	agent := gopubsub.NewAgent()
 	defer agent.Close()
 
 	// Subscribe to a topic
 	sub, _ := agent.Subscribe("foo")
 	sub2, cancel := agent.Subscribe("foo")
-	defer cancel(agent, sub2)           // remember to unsubscribe !
+	defer cancel(agent, sub2) // remember to unsubscribe !
 	sub3, cancel := agent.Subscribe("foo")
 	defer cancel(agent, sub3)
 
@@ -54,9 +53,11 @@ func TestChanSub(t *testing.T) {
 		fmt.Println("channel is closed")
 	}
 
-	suber4,cancel := agent.Subscribe("foo2")
-	defer cancel(agent,suber4)
+	suber4, cancel := agent.Subscribe("foo2")
+	defer cancel(agent, suber4)
 	for _ = range 11 {
-		agent.Publish("foo2","hello")
+		if fail := agent.Publish("foo2", "hello"); fail != nil {
+			panic(fail)
+		}
 	}
 }

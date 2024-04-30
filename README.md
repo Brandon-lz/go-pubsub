@@ -21,38 +21,42 @@ import (
 )
 
 func main() {
-    agent := gopubsub.NewAgent()
-    defer agent.Close()
-	
-    // Subscribe to a topic
-    sub,_ := agent.Subscribe("foo")
-    sub2,cancel := agent.Subscribe("foo")
-    defer agent.Unsubscribe(sub2)
-    sub3 := agent.Subscribe("foo")
-    defer agent.Unsubscribe(sub3)
-	
-    var wg = &sync.WaitGroup{}
+    // channel to publish messages to
+	// Create a new agent
+	agent := gopubsub.NewAgent()
+	defer agent.Close()
 
-    wg.Add(3)
-    go func() {
-        defer wg.Done()
-        fmt.Println(<-sub.Msg)
-    }()
+	// Subscribe to a topic
+	sub, _ := agent.Subscribe("foo")
+	sub2, cancel := agent.Subscribe("foo")
+	defer cancel(agent, sub2) // remember to unsubscribe !
+	sub3, cancel := agent.Subscribe("foo")
+	defer cancel(agent, sub3)
 
-    go func() {
-        defer wg.Done()
-        fmt.Println(<-sub2.Msg)
-    }()
+	// Publish a message to the topic
+	var wg = &sync.WaitGroup{}
 
-    go func() {
-        defer wg.Done()
-        fmt.Println(<-sub3.Msg)
-    }()
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		fmt.Println(<-sub.Msg)
+	}()
 
-   
-    // Publish a message to the topic
-    go agent.Publish("foo", "hello world")
+	go func() {
+		defer wg.Done()
+		fmt.Println(<-sub2.Msg)
+	}()
 
-    wg.Wait()
+	go func() {
+		defer wg.Done()
+		fmt.Println(<-sub3.Msg)
+	}()
+
+	go agent.Publish("foo", "hello world")
+
+	wg.Wait()
+
+	agent.Unsubscribe(sub)
+	fmt.Println("subscrip closed suber")
 }
 ```
