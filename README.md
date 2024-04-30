@@ -25,8 +25,8 @@ func main() {
     defer agent.Close()
 	
     // Subscribe to a topic
-    sub := agent.Subscribe("foo")
-    sub2 := agent.Subscribe("foo")
+    sub,_ := agent.Subscribe("foo")
+    sub2,cancel := agent.Subscribe("foo")
     defer agent.Unsubscribe(sub2)
     sub3 := agent.Subscribe("foo")
     defer agent.Unsubscribe(sub3)
