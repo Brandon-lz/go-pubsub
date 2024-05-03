@@ -17,7 +17,7 @@ func TestChanSub(t *testing.T) {
 	// Subscribe to a topic
 	sub, _ := agent.Subscribe("foo")
 	sub2, cancel := agent.Subscribe("foo")
-	defer cancel(agent, sub2) // remember to unsubscribe !
+	defer cancel(agent, sub2) // recommend using defer to ensure unsubscribe run finally
 	sub3, cancel := agent.Subscribe("foo")
 	defer cancel(agent, sub3)
 
@@ -56,8 +56,10 @@ func TestChanSub(t *testing.T) {
 	suber4, cancel := agent.Subscribe("foo2")
 	defer cancel(agent, suber4)
 	for _ = range 11 {
-		if fail := agent.Publish("foo2", "hello"); fail != nil {
-			panic(fail)
-		}
+		agent.Publish("foo2", "hello") // will block on 11, but will auto wait for 1 minite, when timeout, force unsubscribe the blocked suber
 	}
+
+	// wait ctrl c
+	quit := make(chan bool)
+	<-quit
 }
