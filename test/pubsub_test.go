@@ -55,7 +55,7 @@ func TestChanSub(t *testing.T) {
 
 	suber4, cancel := agent.Subscribe("foo2")
 	defer cancel(agent, suber4)
-	for _ = range 11 {
+	for range 11 {
 		agent.Publish("foo2", "hello") // will block on 11, but will auto wait for 1 minite, when timeout, force unsubscribe the blocked suber
 	}
 

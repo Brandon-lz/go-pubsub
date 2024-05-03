@@ -2,7 +2,9 @@ package gopubsub
 
 import (
 	"fmt"
+	"log"
 	"sync"
+	"time"
 )
 
 type Agent struct {
@@ -30,13 +32,44 @@ func (a *Agent) Publish(topic string, msg MsgT) error {
 	}
 
 	for _, ch := range a.subs[topic] {
-		if len(ch.Msg) == cap(ch.Msg) {
-			fmt.Printf("gopubsub Warning: suber:[%s] from topic: [%s]  channel is full, please check if suber not to cancel, or increase suber's buffsize\n", ch.name, topic)
-			return fmt.Errorf("suber:[%s] from topic: [%s]  channel is full, please check if suber not to cancel, or increase suber's buffsize", ch.name, topic)
+		if len(ch.Msg) < cap(ch.Msg) {
+			ch.Msg <- msg
+			continue
 		}
-		ch.Msg <- msg
+		if len(ch.Msg) == cap(ch.Msg) {
+			log.Printf("gopubsub Warning: suber:[%s] from topic: [%s]  channel is full, please check if suber not to cancel, or increase suber's buffsize\n", ch.name, topic)
+			// return fmt.Errorf("suber:[%s] from topic: [%s]  channel is full, please check if suber not to cancel, or increase suber's buffsize", ch.name, topic)
+			go a.pushWithTimeout(topic, ch, msg, time.Minute)
+			continue
+		}
 	}
 	return nil
+}
+
+func (a *Agent) pushWithTimeout(topic string, suber *Subscriber, msg MsgT, timeout time.Duration) {
+	finish := make(chan bool)
+	go func() {
+		defer func() {
+			recover()
+		}()
+		suber.Msg <- msg
+		finish <- true
+	}()
+
+	deadline := time.Now().Add(timeout)
+	for {
+		select {
+		case <-finish:
+			return
+		default:
+			if time.Now().After(deadline) {
+				log.Println("suber", suber.name, "from topic:", topic, "perhaps go wrong, stop to publish to this suber")
+				a.Unsubscribe(suber)
+				close(finish)
+				return
+			}
+		}
+	}
 }
 
 type Subscriber struct {
